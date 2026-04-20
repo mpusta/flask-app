@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ fund_name }} — Tear Sheet</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #ffffff;
+      --bg-secondary: #f6f6f4;
+      --text:         #1a1a18;
+      --text-muted:   #6b6b67;
+      --border:       rgba(0,0,0,0.10);
+      --brand-red:    #B8412B;
+      --brand-blue:   #1A4977;
+      --brand-red-light:  rgba(184,65,43,0.10);
+      --brand-blue-light: rgba(26,73,119,0.10);
+      --green:        #1D9E75;
+      --red:          #D85A30;
+      --purple:       #534AB7;
+      --gray-line:    #888780;
+      --grid:         rgba(0,0,0,0.06);
+      --radius:       8px;
+      --radius-lg:    12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+      background: #f0efe9;
+      color: var(--text);
+      padding: 2rem 1rem;
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      border: 0.5px solid var(--border);
+      padding: 2rem 2.25rem 2.5rem;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 1.25rem;
+      border-bottom: 0.5px solid var(--border);
+      margin-bottom: 1.75rem;
+    }
+    .header h1 { font-size: 22px; font-weight: 500; color: var(--brand-blue); }
+    .header p  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .badge {
+      font-size: 11px;
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 20px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ── Seed bar ── */
+    .seed-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 1.75rem;
+    }
+    .seed-bar label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); white-space: nowrap; font-weight: 500; }
+    .seed-bar input[type=range] { flex: 1; accent-color: var(--brand-blue); cursor: pointer; }
+    .seed-val { font-size: 13px; font-weight: 500; color: var(--brand-blue); min-width: 28px; text-align: right; }
+    .refresh-btn {
+      background: var(--brand-blue);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .refresh-btn:hover  { background: #163d63; }
+    .refresh-btn:active { transform: scale(0.97); }
+
+    /* ── KPI bar ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.75rem;
+    }
+    .kpi { background: var(--bg-secondary); border-radius: var(--radius); padding: 14px 16px; }
+    .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 6px; }
+    .kpi-val   { font-size: 20px; font-weight: 500; }
+
+    .pos { color: var(--green); }
+    .neg { color: var(--red); }
+    .neu { color: var(--text); }
+
+    /* ── Sections ── */
+    .section       { margin-bottom: 1.75rem; }
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+    .chart-wrap { position: relative; width: 100%; }
+
+    .legend      { display: flex; gap: 16px; margin-bottom: 10px; font-size: 12px; color: var(--text-muted); }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-line { width: 22px; height: 2.5px; border-radius: 2px; display: inline-block; }
+
+    .divider { border: none; border-top: 0.5px solid var(--border); margin: 1.75rem 0; }
+
+    /* ── Heatmap ── */
+    .heatmap-wrap { overflow-x: auto; }
+    table.heatmap  { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+    .heatmap th    { font-size: 10px; font-weight: 500; color: var(--text-muted); padding: 4px 5px; text-align: center; white-space: nowrap; }
+    .heatmap th.yr-col { text-align: left; width: 46px; }
+    .heatmap td    { padding: 5px 3px; text-align: center; border-radius: 3px; font-weight: 500; }
+
+    /* ── Stats table ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .stats-col { display: flex; flex-direction: column; }
+    .stats-col:first-child { border-right: 0.5px solid var(--border); }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 16px;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 13px;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-name { color: var(--text-muted); }
+    .stat-val  { font-weight: 500; }
+
+    /* ── Footer ── */
+    .footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 0.5px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 600px) {
+      .page { padding: 1.25rem 1rem 1.75rem; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .stats-col:first-child { border-right: none; border-bottom: 0.5px solid var(--border); }
+      .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .seed-bar { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+<main class="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div>
+      <h1>{{ fund_name }}</h1>
+      <p>{{ date_range }} &nbsp;·&nbsp; Benchmark: {{ benchmark }}</p>
+    </div>
+    <span class="badge">6-year analysis</span>
+  </header>
+
+  <!-- Seed bar -->
+  <div class="seed-bar">
+    <label>Data seed</label>
+    <input type="range" id="seedSlider" min="1" max="99" value="42" step="1">
+    <span class="seed-val" id="seedVal">42</span>
+    <button class="refresh-btn" id="refreshBtn">Refresh</button>
+  </div>
+
+  <!-- KPI bar -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- Cumulative returns -->
+  <section class="section">
+    <div class="section-label">Cumulative returns</div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-line" style="background:#B8412B;"></span>Portfolio</div>
+      <div class="legend-item"><span class="legend-line" style="background:#888780;"></span>{{ benchmark }}</div>
+    </div>
+    <div class="chart-wrap" style="height:220px;"><canvas id="cumChart" role="img" aria-label="Cumulative returns chart."></canvas></div>
+  </section>
+
+  <!-- Drawdown -->
+  <section class="section">
+    <div class="section-label">Drawdown</div>
+    <div class="chart-wrap" style="height:130px;"><canvas id="ddChart" role="img" aria-label="Drawdown chart."></canvas></div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Heatmap -->
+  <section class="section">
+    <div class="section-label">Monthly returns (%)</div>
+    <div class="heatmap-wrap"><table class="heatmap" id="heatmap"></table></div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Rolling Sharpe -->
+  <section class="section">
+    <div class="section-label">Rolling 12-month Sharpe</div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-line" style="background:#1A4977;"></span>Rolling Sharpe</div>
+      <div class="legend-item"><span class="legend-line" style="background:#888780;opacity:.5;"></span>1.0 baseline</div>
+    </div>
+    <div class="chart-wrap" style="height:150px;"><canvas id="rollChart" role="img" aria-label="Rolling Sharpe ratio chart."></canvas></div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Stats -->
+  <section class="section">
+    <div class="section-label">Risk &amp; return statistics</div>
+    <div class="stats-grid">
+      <div class="stats-col" id="statsLeft"></div>
+      <div class="stats-col" id="statsRight"></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    Generated on {{ generated_at }} &nbsp;·&nbsp;
+    For informational purposes only. Past performance does not guarantee future results.
+  </footer>
+
+</main>
+
+<script>
+/* ── Seeded RNG ── */
+function rng(seed) {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => { s = s * 16807 % 2147483647; return (s - 1) / 2147483646; };
+}
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const YEARS  = [2019,2020,2021,2022,2023,2024];
+const LABELS = [];
+YEARS.forEach(y => MONTHS.forEach(m => LABELS.push(m.slice(0,1) + String(y).slice(2))));
+
+const GRID = 'rgba(0,0,0,0.06)', TICK = '#888780';
+const BRAND_RED  = '#B8412B', BRAND_RED_FILL  = 'rgba(184,65,43,0.10)';
+const BRAND_BLUE = '#1A4977', BRAND_BLUE_FILL = 'rgba(26,73,119,0.09)';
+const BENCH_COLOR = '#888780', BENCH_FILL = 'rgba(136,135,128,0.08)';
+
+/* ── Generate all data from a seed ── */
+function generate(seed) {
+  const r = rng(seed), rb = rng(seed + 1000);
+
+  /* monthly returns: portfolio drifts positive, some volatile years */
+  const monthly = {};
+  YEARS.forEach((y, yi) => {
+    const bias = 0.014 + r() * 0.008;
+    monthly[y] = MONTHS.map(() => +((r() - (0.50 - bias)) * 15).toFixed(1));
+  });
+
+  /* cumulative curves */
+  const cum = [100], bench = [100];
+  YEARS.forEach(y => {
+    monthly[y].forEach(m => {
+      cum.push(+(cum[cum.length-1] * (1 + m/100)).toFixed(2));
+      bench.push(+(bench[bench.length-1] * (1 + ((rb()-0.46)*11)/100)).toFixed(2));
+    });
+  });
+  cum.shift(); bench.shift();
+
+  /* drawdown */
+  let peak = cum[0];
+  const dd = cum.map(v => { if (v > peak) peak = v; return +((v - peak)/peak*100).toFixed(2); });
+
+  /* rolling 12m Sharpe */
+  const flat = [];
+  YEARS.forEach(y => monthly[y].forEach(m => flat.push(m)));
+  const rollSharpe = [];
+  for (let i = 11; i < flat.length; i++) {
+    const w = flat.slice(i-11, i+1);
+    const mean = w.reduce((a,b) => a+b, 0) / 12;
+    const std  = Math.sqrt(w.map(x => (x-mean)**2).reduce((a,b) => a+b, 0) / 12);
+    rollSharpe.push(std > 0 ? +(mean/std*Math.sqrt(12)).toFixed(2) : 0);
+  }
+
+  /* derived stats */
+  const totalRet   = +((cum[cum.length-1]/100 - 1)*100).toFixed(1);
+  const cagr        = +((Math.pow(cum[cum.length-1]/100, 1/6) - 1)*100).toFixed(1);
+  const maxDD       = +Math.min(...dd).toFixed(1);
+  const meanSharpe  = +(rollSharpe.reduce((a,b) => a+b,0)/rollSharpe.length).toFixed(2);
+  const sortino     = +(meanSharpe * 1.45 + (r()-0.5)*0.2).toFixed(2);
+  const vol         = +(Math.sqrt(flat.map(x => x**2).reduce((a,b)=>a+b,0)/flat.length - (flat.reduce((a,b)=>a+b,0)/flat.length)**2) * Math.sqrt(12)).toFixed(1);
+  const calmar      = +Math.abs(cagr / maxDD).toFixed(2);
+  const winRate     = +(flat.filter(x => x>0).length / flat.length * 100).toFixed(1);
+  const beta        = +(0.65 + r()*0.3).toFixed(2);
+  const alpha       = +(cagr - beta*8).toFixed(1);
+  const corr        = +(0.55 + r()*0.25).toFixed(2);
+  const r2          = +(corr**2).toFixed(2);
+  const skew        = +((r()-0.5)*0.8).toFixed(2);
+  const kurt        = +(3 + (r()-0.5)*1.2).toFixed(2);
+  const sortedFlat  = [...flat].sort((a,b)=>a-b);
+  const varVal      = +(sortedFlat[Math.floor(sortedFlat.length*0.05)]).toFixed(1);
+  const cvarSlice   = sortedFlat.slice(0, Math.floor(sortedFlat.length*0.05));
+  const cvar        = cvarSlice.length ? +(cvarSlice.reduce((a,b)=>a+b,0) / cvarSlice.length).toFixed(1) : varVal;
+  const wins        = flat.filter(x=>x>0);
+  const losses      = flat.filter(x=>x<0);
+  const avgWin      = +(wins.reduce((a,b)=>a+b,0)/wins.length).toFixed(2);
+  const avgLoss     = +(losses.reduce((a,b)=>a+b,0)/losses.length).toFixed(2);
+  const profFactor  = +(Math.abs(avgWin/avgLoss)*1.1).toFixed(2);
+  const bestM       = +(Math.max(...Object.values(monthly).flat())).toFixed(1);
+  const worstM      = +(Math.min(...Object.values(monthly).flat())).toFixed(1);
+
+  return { monthly, cum, bench, dd, rollSharpe,
+    stats: { totalRet, cagr, maxDD, meanSharpe, sortino,
+             vol: +(vol).toFixed(1), calmar, winRate, beta, alpha,
+             corr, r2, skew, kurt, varVal, cvar,
+             avgWin, avgLoss, profFactor, bestM, worstM } };
+}
+
+/* ── Chart instances ── */
+let cumChart, ddChart, rollChart;
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+  elements: { point: { radius: 0 }, line: { tension: 0.3, borderWidth: 1.8 } },
+  scales: {
+    x: { grid: { color: GRID }, ticks: { color: TICK, font: { size: 10 }, maxTicksLimit: 12, autoSkip: true } },
+    y: { grid: { color: GRID }, ticks: { color: TICK, font: { size: 10 } } }
+  }
+};
+
+function initCharts(d) {
+  const rollLabels = LABELS.slice(11);
+
+  cumChart = new Chart(document.getElementById('cumChart'), {
+    type: 'line',
+    data: { labels: LABELS, datasets: [
+      { label: 'Portfolio', data: d.cum,   borderColor: BRAND_RED,   backgroundColor: BRAND_RED_FILL,  fill: true },
+      { label: 'Benchmark', data: d.bench, borderColor: BENCH_COLOR, backgroundColor: BENCH_FILL, fill: true, borderDash: [4,3] }
+    ]},
+    options: { ...baseOpts }
+  });
+
+  ddChart = new Chart(document.getElementById('ddChart'), {
+    type: 'line',
+    data: { labels: LABELS, datasets: [
+      { label: 'Drawdown', data: d.dd, borderColor: '#D85A30', backgroundColor: 'rgba(216,90,48,0.14)', fill: true }
+    ]},
+    options: { ...baseOpts, scales: { x: baseOpts.scales.x,
+      y: { ...baseOpts.scales.y, ticks: { ...baseOpts.scales.y.ticks, callback: v => v.toFixed(0)+'%' } } } }
+  });
+
+  rollChart = new Chart(document.getElementById('rollChart'), {
+    type: 'line',
+    data: { labels: rollLabels, datasets: [
+      { label: 'Rolling Sharpe', data: d.rollSharpe, borderColor: BRAND_BLUE, backgroundColor: BRAND_BLUE_FILL, fill: true },
+      { label: 'Baseline',       data: rollLabels.map(()=>1), borderColor: 'rgba(136,135,128,0.45)', borderDash: [3,3], fill: false, borderWidth: 1 }
+    ]},
+    options: { ...baseOpts, scales: { x: baseOpts.scales.x,
+      y: { ...baseOpts.scales.y, ticks: { ...baseOpts.scales.y.ticks, callback: v => v.toFixed(1) } } } }
+  });
+}
+
+function updateCharts(d) {
+  cumChart.data.datasets[0].data  = d.cum;
+  cumChart.data.datasets[1].data  = d.bench;
+  cumChart.update('none');
+
+  ddChart.data.datasets[0].data   = d.dd;
+  ddChart.update('none');
+
+  rollChart.data.datasets[0].data = d.rollSharpe;
+  rollChart.update('none');
+}
+
+/* ── KPI bar ── */
+function renderKPI(s) {
+  const items = [
+    { label: 'Total return',  val: (s.totalRet>0?'+':'')+s.totalRet+'%', cls: s.totalRet>=0?'pos':'neg' },
+    { label: 'CAGR',          val: (s.cagr>0?'+':'')+s.cagr+'%',         cls: s.cagr>=0?'pos':'neg' },
+    { label: 'Sharpe ratio',  val: s.meanSharpe,                          cls: 'neu' },
+    { label: 'Sortino ratio', val: s.sortino,                             cls: 'neu' },
+    { label: 'Max drawdown',  val: s.maxDD+'%',                           cls: 'neg' },
+    { label: 'Volatility',    val: s.vol+'%',                             cls: 'neu' },
+    { label: 'Calmar ratio',  val: s.calmar,                              cls: 'neu' },
+    { label: 'Win rate',      val: s.winRate+'%',                         cls: 'pos' },
+  ];
+  document.getElementById('kpiGrid').innerHTML = items.map(k =>
+    `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-val ${k.cls}">${k.val}</div></div>`
+  ).join('');
+}
+
+/* ── Stats table ── */
+function renderStats(s) {
+  const left = [
+    ['Annual return',   (s.cagr>=0?'+':'')+s.cagr+'%',      s.cagr>=0?'pos':'neg'],
+    ['Ann. volatility', s.vol+'%',                           'neu'],
+    ['Sharpe ratio',    String(s.meanSharpe),                'neu'],
+    ['Sortino ratio',   String(s.sortino),                   'neu'],
+    ['Max drawdown',    s.maxDD+'%',                         'neg'],
+    ['Calmar ratio',    String(s.calmar),                    'neu'],
+    ['Win rate',        s.winRate+'%',                       'pos'],
+    ['Avg win day',     '+'+s.avgWin+'%',                    'pos'],
+    ['Avg loss day',    s.avgLoss+'%',                       'neg'],
+    ['Profit factor',   String(s.profFactor),                'pos'],
+  ];
+  const right = [
+    ['Beta',        String(s.beta),              'neu'],
+    ['Alpha',       (s.alpha>=0?'+':'')+s.alpha+'%', s.alpha>=0?'pos':'neg'],
+    ['Correlation', String(s.corr),              'neu'],
+    ['R-squared',   String(s.r2),                'neu'],
+    ['VaR (95%)',   s.varVal+'%',                'neg'],
+    ['CVaR (95%)',  s.cvar+'%',                  'neg'],
+    ['Skewness',    String(s.skew),              'neu'],
+    ['Kurtosis',    String(s.kurt),              'neu'],
+    ['Best month',  '+'+s.bestM+'%',             'pos'],
+    ['Worst month', s.worstM+'%',                'neg'],
+  ];
+  const colors = { pos: 'var(--green)', neg: 'var(--red)', neu: 'inherit' };
+  const build = (id, rows) => {
+    document.getElementById(id).innerHTML = rows.map(([n,v,c]) =>
+      `<div class="stat-row"><span class="stat-name">${n}</span><span class="stat-val" style="color:${colors[c]};">${v}</span></div>`
+    ).join('');
+  };
+  build('statsLeft', left);
+  build('statsRight', right);
+}
+
+/* ── Heatmap ── */
+function retStyle(v) {
+  const abs = Math.min(Math.abs(v)/8, 1);
+  if (v > 0) return `background:rgba(29,158,117,${(0.12+abs*0.55).toFixed(2)});color:#0F6E56;`;
+  return `background:rgba(216,90,48,${(0.10+abs*0.55).toFixed(2)});color:#993C1D;`;
+}
+
+function renderHeatmap(monthly) {
+  const tbl = document.getElementById('heatmap');
+  tbl.innerHTML = `<thead><tr><th class="yr-col">Year</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>`;
+  const tbody = document.createElement('tbody');
+  YEARS.forEach(y => {
+    const vals = monthly[y];
+    const total = vals.reduce((a,b)=>a+b,0);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-size:12px;font-weight:500;color:#6b6b67;padding:5px 4px;">${y}</td>`
+      + vals.map(v=>`<td style="${retStyle(v)}">${v>0?'+':''}${v.toFixed(1)}</td>`).join('')
+      + `<td style="${retStyle(total)};font-weight:600;">${total>0?'+':''}${total.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+}
+
+/* ── Render all ── */
+function renderAll(seed) {
+  const d = generate(seed);
+  renderKPI(d.stats);
+  renderStats(d.stats);
+  renderHeatmap(d.monthly);
+  return d;
+}
+
+/* ── Init ── */
+let activeSeed = 42;
+let data = renderAll(activeSeed);
+initCharts(data);
+
+/* ── Slider: update seed display only ── */
+const slider   = document.getElementById('seedSlider');
+const seedVal  = document.getElementById('seedVal');
+slider.addEventListener('input', () => { seedVal.textContent = slider.value; });
+
+/* ── Refresh button: apply seed and redraw ── */
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  activeSeed = parseInt(slider.value);
+  const d = renderAll(activeSeed);
+  updateCharts(d);
+});
+</script>
+</body>
+</html>
