@@ -110,7 +110,7 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
         turnover = {}
         prev_w = initial_w
         for d in rebal_dates:
-            # reindex to ensure the new weights align with the price columns, and fill any missing tickers with 0 weight.
+            # Reindex to ensure the new weights align with the price columns.
             new_w = target_weights(prices, d).reindex(prices.columns).fillna(0.0)
             turnover[d] = (new_w - prev_w).abs().sum()
             rebal_rows[d] = new_w
