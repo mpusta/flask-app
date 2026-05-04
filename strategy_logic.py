@@ -6,7 +6,7 @@ import quantstats as qs
 def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_weight=0.5):
 
     prices = prices.sort_index()
-    # Solves the problem of repeated due to inclusion of etfs mid month.
+    # Resampling to month-end ensures we have a single price per month.
     prices = prices.resample('ME').last()
     benchmark = 'SPY'
     sectors = [c for c in prices.columns if c != benchmark]
@@ -45,17 +45,17 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
         # End price of all tickers at the end of the previous month.
         # We will compare this to the price N months ago to calculate momentum.
         end_price = prices.iloc[end_pos]
-
+        # Calculate momentum ranks for each lookback period and store in a list of DataFrames.
         rank_frames = []
         for m in lookback_months:
             start_pos = end_pos - m
             if start_pos >= 0:
                 start_price = prices.iloc[start_pos]
+                # Only calculate momentum for tickers with valid prices at both the start and end.
                 valid = start_price.notna() & end_price.notna()
                 ret = (end_price[valid] / start_price[valid]) - 1.0
                 ret = ret[ret.index.isin(sectors_set)]  # Sets are faster than lists for finding elements.
                 rank_frames.append(ret.rank(ascending=True))
-
         # Empty series for when not enough history to calculate the 3-month or 6-month momentum.
         if not rank_frames:
             return pd.Series(dtype=float)
@@ -70,15 +70,14 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
         if scores.empty:
             weights[benchmark] = 1.0
             return weights
-
-        # Pick top N by momentum
+        # Pick top N by momentum.
         candidates = scores.nlargest(min(top_n_sectors, len(scores))).index.tolist()
-
         # Drop any candidate sector that's below its own SMA.
         if use_sector_trend:
             candidates = [s for s in candidates
                         if is_above_sma(prices, s, asof, trend_sma_months)]
-
+        # Assign core weight to benchmark, and tilt weight equally among candidates.
+        # If no candidates, tilt weight falls back to benchmark.
         weights[benchmark] = core_weight
         if candidates:
             per_sector = tilt_weight / len(candidates)
@@ -87,9 +86,7 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
         else:
             # No sector passed trend filter: tilt weight falls back to SPY core.
             weights[benchmark] += tilt_weight
-
         return weights
-
 
     def backtest(prices):
         # Calculate returns.
@@ -126,7 +123,6 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
         strat_ret = (weight_history.shift(1).fillna(0.0) * rets).sum(axis=1)
         costs = pd.Series(turnover, dtype=float) * cost_per_rebal
         strat_ret = strat_ret.subtract(costs, fill_value=0.0)
-
         return {
             'strategy_returns': strat_ret,
             'bmk_returns':      rets[benchmark],

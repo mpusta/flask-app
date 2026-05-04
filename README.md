@@ -236,111 +236,159 @@ GET /              -> renders tearsheet.html with fund_name, date_range, benchma
 GET /api/refresh   -> runs the backtest with user-supplied parameters
                       query: l1 (int, default 3), l2 (int, default 6),
                              n (int, default 3),  c (float, default 0.5)
-                      returns: JSON payload as documented in 3.6
+                      returns: JSON
 ```
 
-The front end is a single Jinja-rendered HTML template (`templates/tearsheet.html`) backed by Chart.js loaded from the jsDelivr CDN. The whole document is one server-rendered page, which means it can be opened, audited, and modified by anyone.
+The front end is a single Jinja-rendered HTML template (`templates/tearsheet.html`) backed by Chart.js.
 
 **Interaction model.**
 
 ```javascript
 document.addEventListener('DOMContentLoaded', () => {
   initCharts();
-  runBacktest();          // automatic run on first page load
+  runBacktest();
 });
 document.getElementById('refreshBtn').addEventListener('click', runBacktest);
 ```
 
 `runBacktest()` reads the four parameter inputs, calls `/api/refresh?l1=&l2=&n=&c=`, and on receipt updates four UI elements in turn: the KPI grid, the stats table, the heatmap, and both charts. While the request is in flight the button text flips to "Running..." and the button is disabled to prevent re-entry.
 
-**What is loaded once vs per request.** `prices.csv` is parsed once at Flask process startup (`app.py` top level). Each `/api/refresh` call only pays for the backtest computation itself. With ~25 years of monthly data across 12 tickers, a full backtest runs in well under a second on a single core, which is why the application can afford to re-run the entire backtest on every user click rather than caching results.
+**What is loaded once vs per request.** `prices.csv` is parsed once at Flask process startup (`app.py` top level). Each `/api/refresh` call only pays for the backtest computation itself. With ~25 years of monthly data across 12 tickers, a full backtest runs in well, which is why the application can afford to re-run the entire backtest on every user click rather than caching results.
 
 ### 4.5 Deployment (`render.yaml`)
 
-Render.com web service, gunicorn-fronted, Python 3.12.0. Production-safe because Flask's dev server (`app.run(debug=True)` at the bottom of `app.py`) is only invoked when the file is run directly, not when imported by gunicorn.
+Render.com web service, gunicorn-fronted, Python 3.12.0. Gunicorn is a Python Web Server Gateway Interface (WSGI) HTTP server that acts as a middleman, translating web requests into Python format.
 
 ### 4.6 Code excerpts
 
-**Excerpt 1: the trend filter.** Contains the early-history guard, NaN guard, and inclusive comparison.
+**Excerpt 1: the trend filter.**
 
 ```python
 def is_above_sma(prices, ticker, asof, window_months):
     """True if `ticker` price at `asof` is >= its trailing SMA.
     Returns False if not enough history or price is NaN."""
+    # Contains index number of the last month <= asof. If asof is before first date, returns -1.
+    # Pad method finds the index of the last date that is less than or equal to the given date (asof).
     end_idx = prices.index.get_indexer([asof], method='pad')[0]
+    # If asof is before first date, end_idx will be -1, which is < window_months, so function will return False.
     if end_idx < window_months:
         return False
     window = prices[ticker].iloc[end_idx - window_months + 1:end_idx + 1]
+    # If any price in the window is NaN, we can't calculate a valid SMA, so return False.
+    # isna() transforms the data into a boolean array where True indicates NaN values.
+    # any() checks if there's at least one True in the array, meaning at least one NaN in the window.
     if window.isna().any():
         return False
     current = prices[ticker].iloc[end_idx]
     return current >= window.mean()
 ```
 
-**Excerpt 2: the allocation kernel.** Builds the rank composite and applies the trend filter.
+**Excerpt 2: the momentum score.**
+
+```python
+def momentum_score(prices, asof):
+    end_idx = prices.index.get_indexer([asof], method='pad')[0]
+    end_pos = end_idx - 1  # Use previous month-end price for momentum calculation.
+    if end_pos <= 0:  # Not enough history to calculate momentum.
+        return pd.Series(dtype=float)
+    # End price of all tickers at the end of the previous month.
+    # We will compare this to the price N months ago to calculate momentum.
+    end_price = prices.iloc[end_pos]
+    # Calculate momentum ranks for each lookback period and store in a list of DataFrames.
+    rank_frames = []
+    for m in lookback_months:
+        start_pos = end_pos - m
+        if start_pos >= 0:
+            start_price = prices.iloc[start_pos]
+            # Only calculate momentum for tickers with valid prices at both the start and end.
+            valid = start_price.notna() & end_price.notna()
+            ret = (end_price[valid] / start_price[valid]) - 1.0
+            ret = ret[ret.index.isin(sectors_set)]  # Sets are faster than lists for finding elements.
+            rank_frames.append(ret.rank(ascending=True))
+    # Empty series for when not enough history to calculate the 3-month or 6-month momentum.
+    if not rank_frames:
+        return pd.Series(dtype=float)
+    # Average the ranks across all lookback periods.
+    return pd.concat(rank_frames, axis=1).mean(axis=1).dropna()
+```
+
+**Excerpt 3: the allocation kernel.**
 
 ```python
 def target_weights(prices, asof):
+    # Start with benchmark and sector weights at 0.
     weights = pd.Series(0.0, index=[benchmark] + sectors)
-    if use_portfolio_trend and not is_above_sma(prices, benchmark, asof, trend_sma_months):
-        return weights
-
+    # Calculate momentum scores for all sectors at the given date.
     scores = momentum_score(prices, asof)
     if scores.empty:
         weights[benchmark] = 1.0
         return weights
-
+    # Pick top N by momentum.
     candidates = scores.nlargest(min(top_n_sectors, len(scores))).index.tolist()
-
+    # Drop any candidate sector that's below its own SMA.
     if use_sector_trend:
         candidates = [s for s in candidates
-                      if is_above_sma(prices, s, asof, trend_sma_months)]
-
+                    if is_above_sma(prices, s, asof, trend_sma_months)]
+    # Assign core weight to benchmark, and tilt weight equally among candidates.
+    # If no candidates, tilt weight falls back to benchmark.
     weights[benchmark] = core_weight
     if candidates:
         per_sector = tilt_weight / len(candidates)
         for s in candidates:
             weights[s] += per_sector
     else:
+        # No sector passed trend filter: tilt weight falls back to SPY core.
         weights[benchmark] += tilt_weight
-    return weights
+    return w
 ```
 
-**Excerpt 3: the backtest loop.** Notice the `shift(1)` on the holdings panel and the cost subtraction.
+**Excerpt 4: the backtest loop.**
 
 ```python
 def backtest(prices):
+    # Calculate returns.
     rets = prices.pct_change().fillna(0.0)
+    # Rebalance on the last day of each quarter, aligned to the price data.
     rebal_dates = [
         prices.index[i]
         for d in pd.date_range(prices.index.min(), prices.index.max(), freq=rebalance_freq)
+        # Get_indexer with method='pad' finds the index of the last date in prices.index that is less than or equal to d.
+        # Method='pad' means that if d is not exactly in prices.index, it will return the index of the most recent prior date.
+        # If d is before the first date in prices.index, it will return -1, which we filter out with the >= 0 condition.
         if (i := prices.index.get_indexer([d], method='pad')[0]) >= 0
     ]
+    # Start with 100% in the benchmark at the first date, then apply target_weights at each rebalance date.
     initial_w = pd.Series(0.0, index=prices.columns)
     initial_w[benchmark] = 1.0
+    # Build a DataFrame of weights at each rebalance date.
     rebal_rows = {prices.index[0]: initial_w}
     turnover = {}
     prev_w = initial_w
     for d in rebal_dates:
+        # Reindex to ensure the new weights align with the price columns.
         new_w = target_weights(prices, d).reindex(prices.columns).fillna(0.0)
         turnover[d] = (new_w - prev_w).abs().sum()
         rebal_rows[d] = new_w
         prev_w = new_w
-
-    weight_history = (pd.DataFrame(rebal_rows).T
-                      .reindex(prices.index).ffill())
-
+    # Create a DataFrame where each row corresponds to a rebalance date and each column corresponds to a ticker's weight.
+    weight_history = (
+        pd.DataFrame(rebal_rows).T
+        .reindex(prices.index) # Align the weight history with the price index, filling in any missing dates.
+        .ffill()
+    )
+    # Calculate strategy returns by multiplying the weights by the returns and summing across all assets.
     strat_ret = (weight_history.shift(1).fillna(0.0) * rets).sum(axis=1)
     costs = pd.Series(turnover, dtype=float) * cost_per_rebal
     strat_ret = strat_ret.subtract(costs, fill_value=0.0)
-    return {'strategy_returns': strat_ret,
-            'bmk_returns': rets[benchmark],
-            'turnover': list(turnover.values()),
-            'rebalance_dates': rebal_dates}
+    return {
+        'strategy_returns': strat_ret,
+        'bmk_returns':      rets[benchmark],
+        'turnover':         list(turnover.values()),
+        'rebalance_dates':  rebal_dates
+    }
 ```
 
 ---
-
 
 ## 5. Challenges, Solutions, and Evolution
 
@@ -355,23 +403,21 @@ def backtest(prices):
 
 ### 5.2 Mid-month ETF additions and irregular calendars
 
-**Hurdle.** Sector ETFs can be added to the universe partway through a month. If the price panel is built naively, this introduces phantom one-period returns of `(price / 0)` or large jumps from NaN-fill behavior.
+**Hurdle.** Sector ETFs can be added to the universe partway through a month. If the price panel is built naively, this introduces NaN-fill behavior.
 
-**Solution.** Two layers. First, `update_csv.py` requests monthly data directly from EODHD rather than resampling daily data, avoiding partial-month rows. Second, `strategy_logic.py` calls `prices.resample('ME').last()` defensively, so even if the input file gained an irregular row, it is collapsed to a single month-end value.
+**Solution.** Two layers. First, `update_csv.py` requests monthly data directly from EODHD rather than resampling daily data. Second, `strategy_logic.py` calls `prices.resample('ME').last()`, so even if the input file gained an irregular row, it is collapsed to a single month-end value.
 
 ### 5.3 Cost realism
 
 **Hurdle.** A 1 bp cost is on the optimistic edge for any institutional context.
 
-**Solution.** Accepted as a v1 tradeoff for simplicity. The cost coefficient is a single named constant (`cost_per_rebal`); it is one line to change. A v2 should add a per-sector spread table and either a fixed-impact or a square-root-impact term for capacity studies.
+**Solution.** Accepted as a first version tradeoff for simplicity. The cost coefficient is a single named constant (`cost_per_rebal`); it is one line to change. A following version should add a per-sector spread table.
 
 ### 5.4 Single-pass overfitting risk
 
-**Hurdle.** The default parameters (3M / 6M lookbacks, top 3, 10-month SMA, 50% core) are reasonable but were not arrived at via walk-forward optimization that is visible in the repo. Any allocator will ask whether they were chosen with hindsight.
+**Hurdle.** The default parameters (3M / 6M lookbacks, top 3, 10-month SMA, 50% core) are reasonable but were not arrived from an optimization stand point.
 
-**Solution proposed (not yet implemented).** A walk-forward harness around `run_dynamic_backtest` that, for each year t, refits the parameter grid on data through year t-1 and applies the chosen parameters to year t. The Flask UI's parameter controls already provide the manual analogue; the automation is the v2 deliverable.
-
-
+**Solution proposed (not yet implemented).** A walk-forward harness that automates "real-time" testing by iteratively refitting strategy parameters on past data (years $t-1$) and validating them on the following unseen year ($t$). This framework prevents overfitting by ensuring the model never "sees" the future data it is currently attempting to trade.
 
 ### 5.6 Version evolution
 
@@ -381,103 +427,13 @@ def backtest(prices):
 
 ## Appendix: Limitations and Next Steps for Deployment
 
-The following items are gaps that can be improved between a working prototype and the document.
+The following items are gaps that can be improved between a working prototype and implementation.
 
 1. **Walk-forward parameter validation.** The current backtest is a single in-sample pass. Required: rolling out-of-sample evaluation with parameters re-selected on each in-sample window.
-2. **Factor attribution.** Regress monthly strategy excess returns onto FF5 + UMD (or AQR's Quality-Minus-Junk for completeness). Report residual alpha and t-statistic, not just Sharpe.
+2. **Factor attribution.** Regress monthly strategy excess returns onto Fama French factors. Report residual alpha and t-statistic, not just Sharpe.
 3. **Transaction-cost realism.** Replace the flat 1 bp with a realistic cost and show sensitivity of CAGR and Sharpe across the 0-10 bp range.
-5. **Regime stress.** Re-run the backtest sliced into 2000-2002, 2007-2009, 2020 Q1, 2022 separately and report the strategy's behavior conditional on these stressed windows.
-6. **Risk-rating module.** Replace the missing automated risk classifier with a formal definition (rolling 36M vol, max drawdown, beta to SPY) and a categorical mapping appropriate for the audience.
-8. **Look-ahead audit on the trend filter.** Use the prior bar's close for the SMA comparison, not the current bar's, for full strictness.
-
+4. **Regime stress.** Re-run the backtest sliced into 2000-2002, 2007-2009, 2020 Q1, 2022 separately and report the strategy's behavior conditional on these stressed windows.
+5. ** Rolling risk analysis.** Add a rolling 36-month volatility series to the tearsheet so the user can see how the strategy's risk profile evolves over time, rather than reading a single all-period number.
 
 ---
-
-
-
-
-
-
-The idea of this project was to 
-
-First of all 
-
-
-- Dynamic Asset Allocation
-- Market Regime
-- Regressions
-- Backtesting
-- Time-series analysis
-Time-series and cross-sectional analysis are the two dimensions of data. Time-series tracks one subject over a period (history), while cross-sectional compares many subjects at one moment (peers).
-- Risk-rating
-- Dashboarding & Visualization
-
-- `requirements.txt`: runtime dependencies
-- `render.yaml`: deployment configuration
-
-
-
-## Strategy considerations
-
-
-
-
-
-Academic inspipration
-
-Moskowitz & Grinblatt (1999)
-Do Industries Explain Momentum? — Journal of Finance
-Demonstrates that momentum is primarily a sector-level phenomenon rather than a stock-picking one. Industries that performed well over the prior 3–12 months continue to outperform in subsequent periods. The foundation for ranking sectors by prior returns and rotating into the top performers.
-
-Faber (2007)
-A Quantitative Approach to Tactical Asset Allocation — Journal of Wealth Management
-Introduces the 10-month simple moving average as a binary trend filter: hold an asset when it trades above its SMA, move to cash otherwise. Applied across asset classes, this mechanical rule significantly reduced drawdowns relative to buy-and-hold with minimal drag on long-run returns.
-
-Antonacci (2014)
-Dual Momentum Investing — McGraw-Hill
-Formalises the combination of cross-sectional momentum (ranking assets against each other) with absolute momentum (confirming each asset is in an uptrend before allocating). This dual filter is the direct ancestor of this strategy's approach: rank sectors by momentum, then gate each one through a trend filter before any capital is deployed.
-
-
-## Back end and front implementation
-
-## Code examples
-
-## Challenges & Solutions
-
-## Changes in versions
-
-
-## Time management in hours
-
-### Planning (finding a strategy to test)
-
-### Implementation
-
-### Iterations
-
-### Documentation
-
-
-
-
-Can you help me write a documentation on a trading strategy I developed to present it to a hedge fund?
-
-
-Before starting the project, the ask was to touch the following points:
-
-Dynamic Asset Allocation
-Market Regime
-Regressions
-Backtesting
-Time-series modeling
-Risk-rating
-Dashboarding & Visualization
-
-The final result was: 
-
-https://github.com/mpusta/flask-app
-
-
-After they saw the app, the follow up was to write a documentation including how I came up with the strategy, back and front end implementation, code examples, challenging and solutions during my work, improvement in version
-
 
