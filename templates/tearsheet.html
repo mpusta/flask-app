@@ -373,7 +373,7 @@ const BRAND_BLUE = '#1A4977', BRAND_BLUE_FILL = 'rgba(26,73,119,0.09)';
 const BENCH_COLOR = '#888780', BENCH_FILL = 'rgba(136,135,128,0.08)';
 
 let cumChart, ddChart;
-
+// Base chart options to ensure visual consistency and reduce repetition across multiple charts.
 const baseOpts = {
   responsive: true,
   maintainAspectRatio: false,
@@ -396,6 +396,8 @@ const baseOpts = {
 };
 
 /* ── API Integration ── */
+// This function is triggered when the user clicks the "Run Backtest" button.
+// It reads the input parameters, calls the API endpoint to run the backtest, and then updates the UI with the new results.
 async function runBacktest() {
   const l1 = document.getElementById('lookback1').value;
   const l2 = document.getElementById('lookback2').value;
@@ -415,16 +417,18 @@ async function runBacktest() {
     renderStats(data.metrics);
     renderHeatmap(data.monthly_returns);
     updateCharts(data);
-  } catch (e) {
+  } catch (e) { // Error handling to catch any issues with the API call or data processing.
     console.error("Backtest failed", e);
     alert("Error running backtest. Check server console.");
-  } finally {
+  } finally { // Re-enable the button and reset text regardless of success or failure to allow for retrying.
     btn.innerText = "Run Backtest";
     btn.disabled = false;
   }
 }
 
 /* ── Chart Management ── */
+// Initialize charts with two datasets: one for the strategy and one for the benchmark.
+// Both start with empty data and will be populated when the backtest runs.
 function initCharts() {
   cumChart = new Chart(document.getElementById('cumChart'), {
     type: 'line',
@@ -445,6 +449,7 @@ function initCharts() {
   });
 }
 
+// Take the new data returned from the API and updates both the cumulative returns and drawdown charts accordingly.
 function updateCharts(d) {
   cumChart.data.labels = d.labels;
   cumChart.data.datasets[0].data = d.cum_data;
@@ -457,7 +462,8 @@ function updateCharts(d) {
   ddChart.update();
 }
 
-/* ── UI Rendering ── */
+/* ── UI Rendering (raw data -> visual interface) ── */
+// Render the key performance indicators (KPIs) in the KPI grid based on the metrics returned from the API.
 function renderKPI(m) {
   const kpis = [
     { label: 'Total return',  val: m["Cumulative Return"][0], cls: m["Cumulative Return"][0].includes('-') ? 'neg' : 'pos' },
@@ -509,11 +515,12 @@ function retStyle(v) {
 }
 
 /* ── Lifecycle ── */
+// Initialize charts and run the backtest automatically when the page loads to show initial results.
 document.addEventListener('DOMContentLoaded', () => {
   initCharts();
   runBacktest(); // Automatic run on load
 });
-
+// Attach event listener to the refresh button to trigger backtest when clicked.
 document.getElementById('refreshBtn').addEventListener('click', runBacktest);
 </script>
 </body>

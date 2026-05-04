@@ -16,7 +16,6 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
 
     # --- Config (mirrors momentum-strategy-quantstats.py) ---
     trend_sma_months = 10                 # 10-month SMA
-    use_portfolio_trend = False    # If True: 100% cash when SPY < 10-month SMA
     use_sector_trend = True        # If True: drop sectors below their own 10-month SMA
     cost_per_rebal = 0.0001        # 1bps spread/cost (commission 0 + spread 1bps)
 
@@ -24,6 +23,7 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
         """True if `ticker` price at `asof` is >= its trailing SMA.
         Returns False if not enough history or price is NaN."""
         # Contains index number of the last month <= asof. If asof is before first date, returns -1.
+        # Pad method finds the index of the last date that is less than or equal to the given date (asof).
         end_idx = prices.index.get_indexer([asof], method='pad')[0]
         # If asof is before first date, end_idx will be -1, which is < window_months, so function will return False.
         if end_idx < window_months:
@@ -63,12 +63,9 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
         return pd.concat(rank_frames, axis=1).mean(axis=1).dropna()
 
     def target_weights(prices, asof):
+        # Start with benchmark and sector weights at 0.
         weights = pd.Series(0.0, index=[benchmark] + sectors)
-
-        # If SPY is below its long-term SMA, go to cash, 0 in this backtest.
-        if use_portfolio_trend and not is_above_sma(prices, benchmark, asof, trend_sma_months):
-            return weights
-
+        # Calculate momentum scores for all sectors at the given date.
         scores = momentum_score(prices, asof)
         if scores.empty:
             weights[benchmark] = 1.0
@@ -95,17 +92,21 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
 
 
     def backtest(prices):
+        # Calculate returns.
         rets = prices.pct_change().fillna(0.0)
-
+        # Rebalance on the last day of each quarter, aligned to the price data.
         rebal_dates = [
             prices.index[i]
             for d in pd.date_range(prices.index.min(), prices.index.max(), freq=rebalance_freq)
+            # Get_indexer with method='pad' finds the index of the last date in prices.index that is less than or equal to d.
+            # Method='pad' means that if d is not exactly in prices.index, it will return the index of the most recent prior date.
+            # If d is before the first date in prices.index, it will return -1, which we filter out with the >= 0 condition.
             if (i := prices.index.get_indexer([d], method='pad')[0]) >= 0
         ]
-
+        # Start with 100% in the benchmark at the first date, then apply target_weights at each rebalance date.
         initial_w = pd.Series(0.0, index=prices.columns)
         initial_w[benchmark] = 1.0
-
+        # Build a DataFrame of weights at each rebalance date.
         rebal_rows = {prices.index[0]: initial_w}
         turnover = {}
         prev_w = initial_w
@@ -115,13 +116,13 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
             turnover[d] = (new_w - prev_w).abs().sum()
             rebal_rows[d] = new_w
             prev_w = new_w
-
+        # Create a DataFrame where each row corresponds to a rebalance date and each column corresponds to a ticker's weight.
         weight_history = (
             pd.DataFrame(rebal_rows).T
-            .reindex(prices.index)
+            .reindex(prices.index) # Align the weight history with the price index, filling in any missing dates.
             .ffill()
         )
-
+        # Calculate strategy returns by multiplying the weights by the returns and summing across all assets.
         strat_ret = (weight_history.shift(1).fillna(0.0) * rets).sum(axis=1)
         costs = pd.Series(turnover, dtype=float) * cost_per_rebal
         strat_ret = strat_ret.subtract(costs, fill_value=0.0)
@@ -134,9 +135,9 @@ def run_dynamic_backtest(prices, lookback_months=[3, 6], top_n_sectors=3, core_w
         }
 
 
-
     ### Main execution of the backtest and summary generation
 
+    # Run the backtest to get strategy returns, benchmark returns, and turnover.
     result = backtest(prices)
 
     strat_rets = result['strategy_returns']
