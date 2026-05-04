@@ -267,16 +267,18 @@ Render.com web service, gunicorn-fronted, Python 3.12.0. Gunicorn is a Python We
 def is_above_sma(prices, ticker, asof, window_months):
     """True if `ticker` price at `asof` is >= its trailing SMA.
     Returns False if not enough history or price is NaN."""
-    # Contains index number of the last month <= asof. If asof is before first date, returns -1.
-    # Pad method finds the index of the last date that is less than or equal to the given date (asof).
+    # Contains index number of the last month <= asof.
+    # Pad method finds the index of the last date that is <= to the given date (asof).
     end_idx = prices.index.get_indexer([asof], method='pad')[0]
-    # If asof is before first date, end_idx will be -1, which is < window_months, so function will return False.
+    # If asof is before first date, end_idx will be -1, which is < window_months,
+    # so function will return False.
     if end_idx < window_months:
         return False
     window = prices[ticker].iloc[end_idx - window_months + 1:end_idx + 1]
-    # If any price in the window is NaN, we can't calculate a valid SMA, so return False.
+    # If any price in the window is NaN, we can't calculate SMA, so return False.
     # isna() transforms the data into a boolean array where True indicates NaN values.
-    # any() checks if there's at least one True in the array, meaning at least one NaN in the window.
+    # any() checks if there's at least one True in the array, 
+    # meaning at least one NaN in the window.
     if window.isna().any():
         return False
     current = prices[ticker].iloc[end_idx]
@@ -294,18 +296,20 @@ def momentum_score(prices, asof):
     # End price of all tickers at the end of the previous month.
     # We will compare this to the price N months ago to calculate momentum.
     end_price = prices.iloc[end_pos]
-    # Calculate momentum ranks for each lookback period and store in a list of DataFrames.
+    # Calculate momentum ranks for each lookback period and store in a list of df.
     rank_frames = []
     for m in lookback_months:
         start_pos = end_pos - m
         if start_pos >= 0:
             start_price = prices.iloc[start_pos]
-            # Only calculate momentum for tickers with valid prices at both the start and end.
+            # Only calculate momentum for tickers with valid prices at 
+            # both the start and end.
             valid = start_price.notna() & end_price.notna()
             ret = (end_price[valid] / start_price[valid]) - 1.0
-            ret = ret[ret.index.isin(sectors_set)]  # Sets are faster than lists for finding elements.
+            # Sets are faster than lists for finding elements.
+            ret = ret[ret.index.isin(sectors_set)]
             rank_frames.append(ret.rank(ascending=True))
-    # Empty series for when not enough history to calculate the 3-month or 6-month momentum.
+    # Empty series for when not enough history to calculate the 3M or 6M momentum.
     if not rank_frames:
         return pd.Series(dtype=float)
     # Average the ranks across all lookback periods.
@@ -339,7 +343,7 @@ def target_weights(prices, asof):
     else:
         # No sector passed trend filter: tilt weight falls back to SPY core.
         weights[benchmark] += tilt_weight
-    return w
+    return weights
 ```
 
 **Excerpt 4: the backtest loop.**
@@ -352,12 +356,13 @@ def backtest(prices):
     rebal_dates = [
         prices.index[i]
         for d in pd.date_range(prices.index.min(), prices.index.max(), freq=rebalance_freq)
-        # Get_indexer with method='pad' finds the index of the last date in prices.index that is less than or equal to d.
-        # Method='pad' means that if d is not exactly in prices.index, it will return the index of the most recent prior date.
-        # If d is before the first date in prices.index, it will return -1, which we filter out with the >= 0 condition.
+        # Get_indexer with method='pad' finds the index of the last date 
+        # in prices.index that is <= to d.
+        # If d is before the first date in prices.index, it will return -1,
+        # filtered out with the >= 0 condition.
         if (i := prices.index.get_indexer([d], method='pad')[0]) >= 0
     ]
-    # Start with 100% in the benchmark at the first date, then apply target_weights at each rebalance date.
+    # Start with 100% in the benchmark at the first date, then apply target_weights.
     initial_w = pd.Series(0.0, index=prices.columns)
     initial_w[benchmark] = 1.0
     # Build a DataFrame of weights at each rebalance date.
@@ -370,13 +375,16 @@ def backtest(prices):
         turnover[d] = (new_w - prev_w).abs().sum()
         rebal_rows[d] = new_w
         prev_w = new_w
-    # Create a DataFrame where each row corresponds to a rebalance date and each column corresponds to a ticker's weight.
+    # Create a DataFrame where each row corresponds to a rebalance date and
+    # each column corresponds to a ticker's weight.
     weight_history = (
         pd.DataFrame(rebal_rows).T
-        .reindex(prices.index) # Align the weight history with the price index, filling in any missing dates.
+        # Align the weight history with the price index, filling missing dates.
+        .reindex(prices.index)\
         .ffill()
     )
-    # Calculate strategy returns by multiplying the weights by the returns and summing across all assets.
+    # Calculate strategy returns by multiplying the weights by the returns
+    # and summing across all assets.
     strat_ret = (weight_history.shift(1).fillna(0.0) * rets).sum(axis=1)
     costs = pd.Series(turnover, dtype=float) * cost_per_rebal
     strat_ret = strat_ret.subtract(costs, fill_value=0.0)
