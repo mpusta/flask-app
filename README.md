@@ -148,15 +148,13 @@ The backtest engine is implemented in `strategy_logic.py::backtest()`. Its struc
 
 ### 3.2 Cost and slippage assumptions
 
-Costs are modelled as a flat 0.0001 (1 bp) charge per unit of turnover at each rebalance, with `turnover = sum(abs(new_weights - prev_weights))`.
+Costs are modelled as a flat 0.0001 (1 bp) charge per unit of turnover at each rebalance, with `turnover = sum(abs(new_weights - prev_weights))`. The assumption should be raised to 3-5 bps for more accurate final results.
 
- What is **not** modelled:
+What is not modelled:
 
-- **Market impact at scale.** A 1% portfolio shift on a $5bn book is roughly $50m of ETF rotation, which, while still small relative to ADV in the major sector SPDRs, is not free.
+- **Market impact at scale.** A 1% portfolio shift on a 5 billion book is roughly 50 million of ETF rotation, which, while still small relative to Average Daily Volume (ADV) in the major sector SPDRs, is not free.
 - **Tax drag.** Not modelled. A taxable account running quarterly rotation will produce short-term capital gains.
-- **Tracking-difference and ETF expense ratios.** SPDR sector ETFs charge ~0.10%; this is implicitly inside the adjusted-close series and does not need a separate accrual.
-
-The 1 bp assumption should be raised to 3-5 bps for any document that an institutional allocator will diligence, or supported with a TCA study from a prime broker.
+- **Tracking-difference and ETF expense ratios.** SPDR sector ETFs charge ~0.10%. This is implicitly inside the adjusted-close series and does not need a separate accrual.
 
 ### 3.3 Look-ahead bias controls
 
@@ -165,7 +163,7 @@ Two explicit anti-look-ahead steps are present:
 1. **Signal lag in `momentum_score`.** `end_pos = end_idx - 1` ensures momentum is computed using prices strictly before `asof`.
 2. **Holdings lag in `backtest`.** `weight_history.shift(1)` ensures the return for period t is multiplied against the weights that were already in place at the start of period t.
 
-There is one residual subtlety. The trend filter uses the close at `asof` itself, not the prior close. In a strict sense this is acceptable when `asof` is the rebalance date, but a stricter implementation would use the prior bar for the trend filter as well. However, the realized impact on results is small because the SMA is over 10 months.
+There is one residual subtlety. The trend filter uses the close at `asof` itself, not the prior close. A stricter implementation would use the prior bar for the trend filter as well. However, the realized impact on results is small because the SMA is over 10 months.
 
 ### 3.4 Risk-adjusted metrics
 
@@ -196,8 +194,6 @@ The JSON returned from `/api/refresh` carries the inputs needed for four standar
 | `dd_data`, `bench_dd_data` | Drawdown chart |
 | `monthly_returns` | Active-return heatmap, year-by-month |
 | `metrics` | Side-by-side strategy vs benchmark metric table |
-
-The Flask layer (`app.py`) preserves key order in the JSON response (`app.json.sort_keys = False`), which is a small but deliberate UX detail: the metrics table on the front end appears in the order the engine emits them, not alphabetically.
 
 ---
 

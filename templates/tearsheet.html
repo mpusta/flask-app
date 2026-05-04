@@ -17,7 +17,6 @@
       --border:       rgba(0,0,0,0.10);
       --brand-red:    #B8412B;
       --brand-blue:   #1A4977;
-      --brand-red-light:  rgba(184,65,43,0.10);
       --brand-blue-light: rgba(26,73,119,0.10);
       --green:        #1D9E75;
       --red:          #D85A30;
@@ -55,6 +54,19 @@
     .header h1 { font-size: 24px; font-weight: 500; color: var(--brand-blue); line-height: 1.4; }
     .header p  { font-size: 14px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
 
+    /* ── Methodology card ── */
+    .info-card {
+      background: var(--brand-blue-light);
+      border: 0.5px solid rgba(26,73,119,0.18);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 1.75rem;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .info-card-title { font-weight: 600; color: var(--brand-blue); display: block; margin-bottom: 4px; }
+
     /* ── Seed bar ── */
     .seed-bar {
       display: flex;
@@ -67,12 +79,15 @@
       margin-bottom: 1.75rem;
       flex-wrap: wrap;
     }
+    .seed-bar-title { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; }
+    .seed-bar-divider { width: 0.5px; height: 28px; background: var(--border); }
+    .param-row { display: flex; gap: 10px; align-items: center; }
     .seed-bar label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); white-space: nowrap; font-weight: 500; }
-    .seed-bar .control-input { 
-      width: 50px; 
+    .seed-bar .control-input {
+      width: 50px;
       text-align: center;
-      border: 1px solid var(--border); 
-      border-radius: 4px; 
+      border: 1px solid var(--border);
+      border-radius: 4px;
       padding: 6px 8px;
       font-size: 13px;
       color: var(--text);
@@ -91,6 +106,7 @@
       white-space: nowrap;
       transition: background 0.15s;
       line-height: 1.4;
+      margin-left: auto;
     }
     .refresh-btn:hover  { background: #163d63; }
     .refresh-btn:active { transform: scale(0.97); }
@@ -136,17 +152,14 @@
     .heatmap th    { font-size: 11px; font-weight: 500; color: var(--text-muted); padding: 6px 6px; text-align: center; white-space: nowrap; line-height: 1.4; }
     .heatmap th.yr-col { text-align: left; width: 48px; }
     .heatmap td    { padding: 8px 5px; text-align: center; border-radius: 3px; font-weight: 500; line-height: 1.4; }
+    .heatmap td:first-child { font-size: 13px; color: var(--text-muted); }
     .heatmap td:last-child, .heatmap th:last-child {
       border-left: 0.5px solid var(--border);
       background: var(--bg-secondary);
       font-size: 13px;
       color: var(--text);
     }
-    .heatmap-total {
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 0.01em;
-    }
+    .heatmap-total { font-weight: 700; font-size: 13px; letter-spacing: 0.01em; }
 
     /* ── Stats table ── */
     .stats-table {
@@ -171,68 +184,30 @@
     .stats-table tbody tr { border-bottom: 0.5px solid var(--border); }
     .stats-table tbody tr:last-child { border-bottom: none; }
     .stats-table tbody tr:nth-child(even) { background: var(--bg-secondary); }
-    .stats-table td {
-      padding: 12px 18px;
-      text-align: right;
-      color: var(--text);
-      font-weight: 500;
-    }
-    .stats-table td:first-child {
-      text-align: left;
-      color: var(--text-muted);
-      font-weight: 400;
-    }
+    .stats-table td { padding: 12px 18px; text-align: right; color: var(--text); font-weight: 500; }
+    .stats-table td:first-child { text-align: left; color: var(--text-muted); font-weight: 400; }
 
     /* ── References ── */
     .ref-list { display: flex; flex-direction: column; gap: 14px; }
-    .ref-card {
-      background: var(--bg-secondary);
-      border-radius: var(--radius);
-      padding: 16px 18px;
-      border: 0.5px solid var(--border);
-    }
-    .ref-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-    .ref-meta {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      font-weight: 500;
-      margin-bottom: 8px;
-    }
-    .ref-body {
-      font-size: 13px;
-      color: var(--text-muted);
-      line-height: 1.7;
-    }
+    .ref-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 16px 18px; border: 0.5px solid var(--border); }
+    .ref-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .ref-meta  { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 500; margin-bottom: 8px; }
+    .ref-body  { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
 
     /* ── Footer ── */
-    .footer {
-      margin-top: 2rem;
-      padding-top: 1rem;
-      border-top: 0.5px solid var(--border);
-      font-size: 12px;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
+    .footer { margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid var(--border); font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
     @media (max-width: 600px) {
-      .page { padding: 1.25rem 1rem 1.75rem; }
-      .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .page    { padding: 1.25rem 1rem 1.75rem; }
+      .header  { flex-direction: column; align-items: flex-start; gap: 10px; }
       .seed-bar { flex-wrap: wrap; }
-      .legend { flex-direction: column; gap: 10px; }
+      .legend  { flex-direction: column; gap: 10px; }
     }
   </style>
 </head>
 <body>
 <main class="page">
 
-  <!-- Header -->
   <header class="header">
     <div>
       <h1>{{ fund_name }}</h1>
@@ -240,51 +215,40 @@
     </div>
   </header>
 
-  <div style="
-    background: var(--brand-blue-light);
-    border: 0.5px solid rgba(26,73,119,0.18);
-    border-radius: var(--radius);
-    padding: 14px 18px;
-    margin-bottom: 1.75rem;
-    font-size: 13px;
-    color: var(--text-muted);
-    line-height: 1.7;
-  ">
-    <span style="font-weight:600; color:var(--brand-blue); display:block; margin-bottom:4px;">How this strategy works</span>
-    Every quarter, the strategy scores each sector ETF by averaging its momentum rank 
-    across two lookback windows. The universe covers all 11 GICS sectors: Energy, 
-    Materials, Industrials, Consumer Discretionary, Consumer Staples, Health Care, 
-    Financials, Information Technology, Communication Services, Utilities, and Real 
-    Estate. The top N sectors by score are selected, but only if they are trading above 
-    their 10-month moving average. Sectors below it are dropped. The portfolio splits 
-    into two parts: a fixed core always held in SPY, and a tilt equally distributed 
-    across the qualifying sectors. If no sector passes the trend filter, the entire 
+  <div class="info-card">
+    <span class="info-card-title">How this strategy works</span>
+    Every quarter, the strategy scores each sector ETF by averaging its momentum rank
+    across two lookback windows. The universe covers all 11 GICS sectors: Energy,
+    Materials, Industrials, Consumer Discretionary, Consumer Staples, Health Care,
+    Financials, Information Technology, Communication Services, Utilities, and Real
+    Estate. The top N sectors by score are selected, but only if they are trading above
+    their 10-month moving average. Sectors below it are dropped. The portfolio splits
+    into two parts: a fixed core always held in SPY, and a tilt equally distributed
+    across the qualifying sectors. If no sector passes the trend filter, the entire
     tilt collapses back into SPY until conditions improve.
   </div>
 
-  <!-- Seed bar -->
-<div class="seed-bar">
-    <span style="font-size:13px; font-weight:500; color:var(--text); white-space:nowrap;">Strategy Parameters</span>
-    <div style="width:0.5px; height:28px; background:var(--border);"></div>
-    <div style="display: flex; gap: 10px; align-items: center;">
-    <label>Lookbacks</label>
-    <input type="number" id="lookback1" value="3" class="control-input">
-    <input type="number" id="lookback2" value="6" class="control-input">
+  <div class="seed-bar">
+    <span class="seed-bar-title">Strategy Parameters</span>
+    <div class="seed-bar-divider"></div>
+    <div class="param-row">
+      <label>Lookbacks</label>
+      <input type="number" id="lookback1" value="3" class="control-input">
+      <input type="number" id="lookback2" value="6" class="control-input">
+    </div>
+    <div class="param-row">
+      <label>Top N</label>
+      <input type="number" id="top_n" value="3" class="control-input">
+    </div>
+    <div class="param-row">
+      <label>Core %</label>
+      <input type="number" id="core_weight" value="0.50" step="0.05" class="control-input">
+    </div>
+    <button class="refresh-btn" id="refreshBtn">Run Backtest</button>
   </div>
-  <div style="display: flex; gap: 10px; align-items: center;">
-    <label>Top N</label>
-    <input type="number" id="top_n" value="3" class="control-input">
-  </div>
-  <div style="display: flex; gap: 10px; align-items: center;">
-    <label>Core %</label>
-    <input type="number" id="core_weight" value="0.50" step="0.05" class="control-input">
-  </div>
-  <button class="refresh-btn" id="refreshBtn" style="margin-left: auto;">Run Backtest</button>
-</div>
-  <!-- KPI bar -->
+
   <div class="kpi-grid" id="kpiGrid"></div>
 
-  <!-- Cumulative returns -->
   <section class="section">
     <div class="section-label">Cumulative returns</div>
     <div class="legend">
@@ -294,7 +258,6 @@
     <div class="chart-wrap" style="height:280px;"><canvas id="cumChart" role="img" aria-label="Cumulative returns chart."></canvas></div>
   </section>
 
-  <!-- Drawdown -->
   <section class="section">
     <div class="section-label">Drawdown</div>
     <div class="legend">
@@ -306,16 +269,11 @@
 
   <hr class="divider">
 
-  <!-- Stats -->
   <section class="section">
     <div class="section-label">Risk &amp; return statistics</div>
     <table class="stats-table" id="statsTable">
       <thead>
-        <tr>
-          <th>Metric</th>
-          <th>Strategy</th>
-          <th>Benchmark</th>
-        </tr>
+        <tr><th>Metric</th><th>Strategy</th><th>Benchmark</th></tr>
       </thead>
       <tbody id="statsBody"></tbody>
     </table>
@@ -323,40 +281,33 @@
 
   <hr class="divider">
 
-  <!-- Heatmap -->
   <section class="section">
     <div class="section-label">Active returns (%)</div>
     <div class="heatmap-wrap"><table class="heatmap" id="heatmap"></table></div>
   </section>
 
-
-<hr class="divider">
+  <hr class="divider">
 
   <section class="section">
     <div class="section-label">Academic Inspiration</div>
     <div class="ref-list">
-
       <div class="ref-card">
         <div class="ref-title">Moskowitz & Grinblatt (1999)</div>
         <div class="ref-meta">Do Industries Explain Momentum? — Journal of Finance</div>
         <div class="ref-body">Demonstrates that momentum is primarily a sector-level phenomenon rather than a stock-picking one. Industries that performed well over the prior 3–12 months continue to outperform in subsequent periods. The foundation for ranking sectors by prior returns and rotating into the top performers.</div>
       </div>
-
       <div class="ref-card">
         <div class="ref-title">Faber (2007)</div>
         <div class="ref-meta">A Quantitative Approach to Tactical Asset Allocation — Journal of Wealth Management</div>
         <div class="ref-body">Introduces the 10-month simple moving average as a binary trend filter: hold an asset when it trades above its SMA, move to cash otherwise. Applied across asset classes, this mechanical rule significantly reduced drawdowns relative to buy-and-hold with minimal drag on long-run returns.</div>
       </div>
-
       <div class="ref-card">
         <div class="ref-title">Antonacci (2014)</div>
         <div class="ref-meta">Dual Momentum Investing — McGraw-Hill</div>
         <div class="ref-body">Formalises the combination of cross-sectional momentum (ranking assets against each other) with absolute momentum (confirming each asset is in an uptrend before allocating). This dual filter is the direct ancestor of this strategy's approach: rank sectors by momentum, then gate each one through a trend filter before any capital is deployed.</div>
       </div>
-
     </div>
   </section>
-
 
   <footer class="footer">
     For informational purposes only. Past performance does not guarantee future results.
@@ -365,142 +316,109 @@
 </main>
 
 <script>
-/* ── Constants & Configuration ── */
+const $      = id => document.getElementById(id);
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const GRID = 'rgba(0,0,0,0.06)', TICK = '#888780';
-const BRAND_RED  = '#B8412B', BRAND_RED_FILL  = 'rgba(184,65,43,0.10)';
-const BRAND_BLUE = '#1A4977', BRAND_BLUE_FILL = 'rgba(26,73,119,0.09)';
-const BENCH_COLOR = '#888780', BENCH_FILL = 'rgba(136,135,128,0.08)';
+const TICK   = '#888780';
+const STRAT  = { color: '#B8412B', fill: 'rgba(184,65,43,0.10)' };
+const BENCH  = { color: '#888780', fill: 'rgba(136,135,128,0.08)' };
 
 let cumChart, ddChart;
-// Base chart options to ensure visual consistency and reduce repetition across multiple charts.
+
+// Shared chart options. The drawdown chart spreads this and overrides only the y-axis tick callback.
 const baseOpts = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
-  scales: { 
+  scales: {
     x: {
       grid: { display: false },
-        ticks: {
-          color: TICK,
-          font: { size: 11 },
-          autoSkip: false,
-          callback: function(val, idx) {
-            const label = this.getLabelForValue(val);
-            return label.startsWith('Jan') ? label.split(' ')[1] : '';
-          }
+      ticks: {
+        color: TICK, font: { size: 11 }, autoSkip: false,
+        callback: function(val) {
+          const label = this.getLabelForValue(val);
+          return label.startsWith('Jan') ? label.split(' ')[1] : '';
         }
-      },
-    y: { grid: { color: GRID }, border: { display: false }, ticks: { color: TICK, font: { size: 11 } } }
+      }
+    },
+    y: { grid: { color: 'rgba(0,0,0,0.06)' }, border: { display: false }, ticks: { color: TICK, font: { size: 11 } } }
   }
 };
 
-/* ── API Integration ── */
-// This function is triggered when the user clicks the "Run Backtest" button.
-// It reads the input parameters, calls the API endpoint to run the backtest, and then updates the UI with the new results.
+// Fresh dataset pair for any line chart on this page (Strategy + Benchmark).
+const datasets = () => [
+  { label: 'Strategy',  data: [], borderColor: STRAT.color, backgroundColor: STRAT.fill, fill: true, pointRadius: 0 },
+  { label: 'Benchmark', data: [], borderColor: BENCH.color, backgroundColor: BENCH.fill, fill: true, borderDash: [4,3], pointRadius: 0 }
+];
+
+// Triggered by the Run Backtest button and once on page load. Reads the four parameters,
+// hits /api/refresh, and pushes the response into every UI surface.
 async function runBacktest() {
-  const l1 = document.getElementById('lookback1').value;
-  const l2 = document.getElementById('lookback2').value;
-  const n  = document.getElementById('top_n').value;
-  const c  = document.getElementById('core_weight').value;
-  const btn = document.getElementById('refreshBtn');
-
-  btn.innerText = "Running...";
-  btn.disabled = true;
-
+  const btn = $('refreshBtn');
+  btn.innerText = "Running..."; btn.disabled = true;
   try {
-    // Calling the API endpoint you created in app.py
-    const response = await fetch(`/api/refresh?l1=${l1}&l2=${l2}&n=${n}&c=${c}`);
-    const data = await response.json();
-
+    const url = `/api/refresh?l1=${$('lookback1').value}&l2=${$('lookback2').value}&n=${$('top_n').value}&c=${$('core_weight').value}`;
+    const data = await (await fetch(url)).json();
     renderKPI(data.metrics);
     renderStats(data.metrics);
     renderHeatmap(data.monthly_returns);
     updateCharts(data);
-  } catch (e) { // Error handling to catch any issues with the API call or data processing.
+  } catch (e) {
     console.error("Backtest failed", e);
     alert("Error running backtest. Check server console.");
-  } finally { // Re-enable the button and reset text regardless of success or failure to allow for retrying.
-    btn.innerText = "Run Backtest";
-    btn.disabled = false;
+  } finally {
+    btn.innerText = "Run Backtest"; btn.disabled = false;
   }
 }
 
-/* ── Chart Management ── */
-// Initialize charts with two datasets: one for the strategy and one for the benchmark.
-// Both start with empty data and will be populated when the backtest runs.
 function initCharts() {
-  cumChart = new Chart(document.getElementById('cumChart'), {
-    type: 'line',
-    data: { labels: [], datasets: [
-      { label: 'Strategy', data: [], borderColor: BRAND_RED, backgroundColor: BRAND_RED_FILL, fill: true, pointRadius: 0 },
-      { label: 'Benchmark', data: [], borderColor: BENCH_COLOR, backgroundColor: BENCH_FILL, fill: true, borderDash: [4,3], pointRadius: 0 }
-    ]},
-    options: baseOpts
-  });
-
-  ddChart = new Chart(document.getElementById('ddChart'), {
-    type: 'line',
-    data: { labels: [], datasets: [
-      { label: 'Strategy', data: [], borderColor: BRAND_RED, backgroundColor: BRAND_RED_FILL, fill: true, pointRadius: 0 },
-      { label: 'Benchmark', data: [], borderColor: BENCH_COLOR, backgroundColor: BENCH_FILL,     fill: true, borderDash: [4,3], pointRadius: 0 }
-    ]},
+  cumChart = new Chart($('cumChart'), { type: 'line', data: { labels: [], datasets: datasets() }, options: baseOpts });
+  ddChart  = new Chart($('ddChart'),  {
+    type: 'line', data: { labels: [], datasets: datasets() },
     options: { ...baseOpts, scales: { x: baseOpts.scales.x, y: { ...baseOpts.scales.y, ticks: { callback: v => v + '%' } } } }
   });
 }
 
-// Take the new data returned from the API and updates both the cumulative returns and drawdown charts accordingly.
 function updateCharts(d) {
-  cumChart.data.labels = d.labels;
-  cumChart.data.datasets[0].data = d.cum_data;
-  cumChart.data.datasets[1].data = d.bench_data;
-  cumChart.update();
-
-  ddChart.data.labels = d.labels;
-  ddChart.data.datasets[0].data = d.dd_data;
-  ddChart.data.datasets[1].data = d.bench_dd_data;
-  ddChart.update();
+  for (const [chart, s, b] of [[cumChart, 'cum_data', 'bench_data'], [ddChart, 'dd_data', 'bench_dd_data']]) {
+    chart.data.labels = d.labels;
+    chart.data.datasets[0].data = d[s];
+    chart.data.datasets[1].data = d[b];
+    chart.update();
+  }
 }
 
-/* ── UI Rendering (raw data -> visual interface) ── */
-// Render the key performance indicators (KPIs) in the KPI grid based on the metrics returned from the API.
 function renderKPI(m) {
   const kpis = [
-    { label: 'Total return',  val: m["Cumulative Return"][0], cls: m["Cumulative Return"][0].includes('-') ? 'neg' : 'pos' },
-    { label: 'CAGR',          val: m["CAGR"][0],              cls: 'pos' },
-    { label: 'Sharpe ratio',  val: m["Sharpe"][0],            cls: 'neu' },
-    { label: 'Max drawdown',  val: m["Max Drawdown"][0],      cls: 'neg' }
+    ['Total return', m["Cumulative Return"][0], m["Cumulative Return"][0].includes('-') ? 'neg' : 'pos'],
+    ['CAGR',         m["CAGR"][0],         'pos'],
+    ['Sharpe ratio', m["Sharpe"][0],       'neu'],
+    ['Max drawdown', m["Max Drawdown"][0], 'neg']
   ];
-  document.getElementById('kpiGrid').innerHTML = kpis.map(k =>
-    `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-val ${k.cls}">${k.val}</div></div>`
+  $('kpiGrid').innerHTML = kpis.map(([label, val, cls]) =>
+    `<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-val ${cls}">${val}</div></div>`
   ).join('');
 }
 
 function renderStats(m) {
-  const rows = Object.entries(m).map(([label, [strat, bench]]) => {
-    return `<tr>
-      <td>${label}</td>
-      <td>${strat}</td>
-      <td>${bench}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('statsBody').innerHTML = rows;
+  $('statsBody').innerHTML = Object.entries(m).map(([label, [s, b]]) =>
+    `<tr><td>${label}</td><td>${s}</td><td>${b}</td></tr>`
+  ).join('');
 }
+
+const fmt = v => `${v > 0 ? '+' : ''}${v.toFixed(1)}`;
 
 function renderHeatmap(monthly) {
   const years = Object.keys(monthly).sort();
-  const tbl = document.getElementById('heatmap');
-  tbl.innerHTML = `<thead><tr><th class="yr-col">Year</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>`;
-  
+  const tbl = $('heatmap');
+  tbl.innerHTML = `<thead><tr><th class="yr-col">Year</th>${MONTHS.map(m => `<th>${m}</th>`).join('')}<th>Total</th></tr></thead>`;
   const tbody = document.createElement('tbody');
   years.forEach(y => {
     const vals = monthly[y];
     const total = vals.reduce((acc, v) => acc * (1 + v / 100), 1) * 100 - 100;
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td style="font-size:13px;font-weight:500;color:#5a5a57;">${y}</td>` +
-      vals.map(v => `<td style="${retStyle(v)}">${v > 0 ? '+' : ''}${v.toFixed(1)}</td>`).join('') +
-      `<td class="heatmap-total" style="${retStyle(total)}">${total > 0 ? '+' : ''}${total.toFixed(1)}</td>`;
+    tr.innerHTML = `<td>${y}</td>` +
+      vals.map(v => `<td style="${retStyle(v)}">${fmt(v)}</td>`).join('') +
+      `<td class="heatmap-total" style="${retStyle(total)}">${fmt(total)}</td>`;
     tbody.appendChild(tr);
   });
   tbl.appendChild(tbody);
@@ -508,20 +426,14 @@ function renderHeatmap(monthly) {
 
 function retStyle(v) {
   if (v === 0) return `background:rgba(136,135,128,0.15);color:var(--text-muted);`;
-  const abs = Math.min(Math.abs(v)/8, 1);
+  const a = Math.min(Math.abs(v) / 8, 1);
   return v > 0
-    ? `background:rgba(29,158,117,${(0.12+abs*0.55).toFixed(2)});color:#0F6E56;`
-    : `background:rgba(216,90,48,${(0.10+abs*0.55).toFixed(2)});color:#993C1D;`;
+    ? `background:rgba(29,158,117,${(0.12 + a * 0.55).toFixed(2)});color:#0F6E56;`
+    : `background:rgba(216,90,48,${(0.10 + a * 0.55).toFixed(2)});color:#993C1D;`;
 }
 
-/* ── Lifecycle ── */
-// Initialize charts and run the backtest automatically when the page loads to show initial results.
-document.addEventListener('DOMContentLoaded', () => {
-  initCharts();
-  runBacktest(); // Automatic run on load
-});
-// Attach event listener to the refresh button to trigger backtest when clicked.
-document.getElementById('refreshBtn').addEventListener('click', runBacktest);
+document.addEventListener('DOMContentLoaded', () => { initCharts(); runBacktest(); });
+$('refreshBtn').addEventListener('click', runBacktest);
 </script>
 </body>
 </html>
