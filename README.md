@@ -1,12 +1,55 @@
 # Momentum Sector Rotation Strategy
 ## Documentation, Methodology and Implementation Review
 
-**Repository:** `github.com/mpusta/flask-app`
-**Benchmark:** S&P 500 (proxy: SPY)
-**Implementation:** Flask web app + monthly EOD pipeline + quarterly-rebalanced backtest engine
-**Dependencies (libraries, APIs):** flask, gunicorn, pandas, numpy, requests, quantstats, python-dotenv, EODHD API
+**Repository:** `github.com/mpusta/flask-app`.
 
-This document describes the strategy and its implementation. Open questions and recommended next steps for institutional deployment are listed in the appendix.
+**Benchmark:** S&P 500 (proxy: SPY).
+
+**Implementation:** Flask web app + monthly EOD pipeline + quarterly-rebalanced backtest engine.
+
+**Dependencies (libraries, APIs):** flask, gunicorn, pandas, numpy, requests, quantstats, python-dotenv, EODHD API.
+
+
+This document describes the strategy and its implementation. Open questions and recommended next steps for institutional deployment are listed in the last section.
+
+---
+
+## Table of Contents
+
+1. [Executive Summary and Strategy Genesis](#1-executive-summary-and-strategy-genesis)
+   - [1.1 Concept](#11-concept)
+   - [1.2 Academic Foundations](#12-academic-foundations)
+   - [1.3 Market Regime Detection](#13-market-regime-detection)
+
+2. [Quantitative Methodology](#2-quantitative-methodology)
+   - [2.1 Universe and rebalance calendar](#21-universe-and-rebalance-calendar)
+   - [2.2 Multi-horizon momentum signal](#22-multi-horizon-momentum-signal)
+   - [2.3 Trend filter mechanics](#23-trend-filter-mechanics)
+   - [2.4 Dynamic allocation construction (core-tilt)](#24-dynamic-allocation-construction-core-tilt)
+
+3. [Backtesting and Performance Analysis](#3-backtesting-and-performance-analysis)
+   - [3.1 Engine architecture](#31-engine-architecture)
+   - [3.2 Cost and slippage assumptions](#32-cost-and-slippage-assumptions)
+   - [3.3 Look-ahead bias controls](#33-look-ahead-bias-controls)
+   - [3.4 Risk-adjusted metrics](#34-risk-adjusted-metrics)
+   - [3.5 Visual validation surface](#35-visual-validation-surface)
+
+4. [Technical Implementation](#4-technical-implementation)
+   - [4.1 Architecture overview](#41-architecture-overview)
+   - [4.2 Data pipeline](#42-data-pipeline-update_csvpy)
+   - [4.3 Calculation engine](#43-calculation-engine-strategy_logicpy)
+   - [4.4 Front-end layer](#44-front-end-layer-apppy-tearsheethtml)
+   - [4.5 Deployment](#45-deployment-renderyaml)
+   - [4.6 Code excerpts](#46-code-excerpts)
+
+5. [Challenges, Solutions, and Evolution](#5-challenges-solutions-and-evolution)
+   - [5.1 Universe survivorship and listing dates](#51-universe-survivorship-and-listing-dates)
+   - [5.2 Mid-month ETF additions and irregular calendars](#52-mid-month-etf-additions-and-irregular-calendars)
+   - [5.3 Cost realism](#53-cost-realism)
+   - [5.4 Single-pass overfitting risk](#54-single-pass-overfitting-risk)
+   - [5.5 Version evolution](#55-version-evolution)
+
+6. [Limitations and Next Steps for Deployment](#limitations-and-next-steps-for-deployment)
 
 ---
 
@@ -30,40 +73,26 @@ The scope of the project was to cover the following topics, based on initial con
 - Risk-rating
 - Dashboarding & Visualization
 
-### 1.2 Ideation
+### 1.2 Academic Foundations
 
-The strategy combines three sources: a podcast I listened to, a book I read, and a paper I came across while researching sectors I was interested in.
-
-#### Core Components
-
-**The Trend Filter (Meb Faber):** Utilizes a 10-month moving average to act as a risk-off switch. This filter aims to mitigate deep drawdowns by exiting positions when the price falls below its long-term average, preserving capital during extended bear markets.
-
-**The Structural Framework (Gary Antonacci)**: Employs Dual Momentum, which combines relative momentum (ranking assets against each other) with absolute momentum (ensuring the asset is actually gaining value). This prevents the portfolio from rotating into the "best of a bad bunch" during market-wide declines.
-
-**The Trading Unit (Moskowitz & Grinblatt)**: Based on their 1999 research, the strategy targets Sector ETFs rather than individual stocks. The paper demonstrates that momentum is primarily an industry-level phenomenon, making sectors the most efficient vehicle for capturing these returns.
-
-The strategy is not novel but becomes a reproductible test of a specific hypothesis: that momentum is best captured at the industry level, gated by an absolute trend check, and protected by a long-term moving average. The goal is to demonstrate a clear process of sourcing academic and practitioner insights to build a disciplined, code-based investment framework.
-
-#### Academic inspiration
+The strategy draws from three sources: academic research on sector momentum, a practitioner framework for trend management, and evidence on dual-momentum allocation.
 
 **Moskowitz, T. J., & Grinblatt, M. (1999):** "Do Industries Explain Momentum?" The Journal of Finance.
-This paper argues that "momentum" (the tendency of winning stocks to keep winning) is largely driven by industries, not just individual stocks. For instance, if tech stocks are doing well, a specific tech stock isn't just rising on its own. It’s riding an industry-wide wave. They found that buying winning industries and selling losing industries was more profitable than picking individual stocks based on price history alone.
+Momentum (the tendency of winning assets to continue winning) is driven primarily by industries, not individual stocks. Buying winning industries and selling losing ones outperforms stock-level momentum strategies. This justifies using sector ETFs as the core trading unit.
 
 **Faber, M. (2007):** "A Quantitative Approach to Tactical Asset Allocation." Journal of Wealth Management.
-Meb Faber’s paper introduced a simple, rule-based system to avoid major market crashes like the 2000 dot-com bust. Look at the 10-month average. If the price of an asset is above the average, you buy it. If it falls below, you sell and move to cash.
-It’s not necessarily about making more money than the market, but about avoiding major drawdowns. By exiting when the trend turns negative, you protect your capital during bear markets.
+A simple 10-month moving average identifies regime breaks. When an asset falls below its long-term average, exit to cash. This rule captures most of the volatility benefit of tactical switching without requiring a forecasting model.
 
-**Antonacci, G. (2014):** "Dual Momentum Investing". McGraw-Hill.
-Gary Antonacci combined Faber’s approach with a peer-comparison logic. He argued that you should combined two types of momentum.
-Relative Momentum: Compare assets against each other and pick the "winner" of the two.
-Absolute Momentum: Compare that "winner" against a "risk-free" asset like Treasury bills. If the winner is performing worse than cash, you stay in cash.
-The Result: You are always invested in the best-performing sector, but you have an emergency brake that pulls you out of the market entirely if everything starts crashing.
+**Antonacci, G. (2014):** "Dual Momentum Investing." McGraw-Hill.
+Combine relative momentum (ranking assets against each other) with absolute momentum (comparing the winner against a safe asset like Treasury bills). This prevents rotating into the "best of a bad bunch" when all sectors are declining.
 
-### 1.4 Market Regime Detection
+The strategy tests a specific hypothesis: momentum is best captured at the industry level, filtered by trend regime, and protected by an absolute momentum check. The goal is to show a clear process for sourcing academic insights into a disciplined, auditable framework.
+
+### 1.3 Market Regime Detection
 
 **Plain statement of what is implemented:** the model implements a trend filter first. If a candidate sector's last close is below its trailing 10-month SMA, that sector is dropped from the tilt allocation regardless of its momentum rank.
 
-The function `is_above_sma(prices, ticker, asof, window_months)` handles this. It returns `False` when there is insufficient history, when there is any NaN inside the lookback window, or when the current close is below the window mean. The conservative-on-NaN behavior prevents a recently-listed sector ETF, such as Real Estated listed in October 2015, from receiving allocation before it has 10 months of history.
+The function `is_above_sma(prices, ticker, asof, window_months)` handles this. It returns `False` when there is insufficient history, when there is any NaN inside the lookback window, or when the current close is below the window mean. The conservative-on-NaN behavior prevents a recently-listed sector ETF, such as XLRE (Real Estate) listed in October 2015, from receiving allocation before it has 10 months of history.
 
 When the sector trend filter eliminates every candidate, the tilt weight does not stay invested in the failed candidates. It falls back to the SPY core position.
 
@@ -130,7 +159,15 @@ weight[sector_i] = (1 - core_weight) / N_passing        for each sector that
                                                         clears both rank and trend
 ```
 
-If zero sectors pass the trend filter, the tilt allocation collapses back into the core: `weight[SPY] = core_weight + (1 - core_weight) = 1.0`. The user-facing API exposes four parameters (`l1`, `l2`, `n`, `c`) covering the two lookback months, the top-N count, and the core weight. All four flow from URL query string into `run_dynamic_backtest` without server-side defaults that override the user input, except for the `default=` clauses in the Flask layer.
+If zero sectors pass the trend filter, the tilt allocation collapses back into the core: `weight[SPY] = core_weight + (1 - core_weight) = 1.0`. 
+
+The user-facing API exposes four parameters via URL query string:
+- `l1`: first lookback horizon (default 3 months)
+- `l2`: second lookback horizon (default 6 months)  
+- `n`: number of top sectors to allocate to (default 3)
+- `c`: core weight, SPY fraction (default 0.5)
+
+All four parameters flow into the backtest engine with sensible defaults provided by the Flask layer (`default=` in the route).
 
 ## 3. Backtesting and Performance Analysis
 
@@ -211,7 +248,7 @@ EODHD API  ->  update_csv.py  ->  prices.csv  ->  strategy_logic.py
                                                        /api/refresh?l1=&l2=&n=&c=
 ```
 
-The split between `update_csv.py` (offline, run on a schedule) and `app.py` (online, serves user requests) is a deliberate separation of the slow data-acquisition path from the fast computation path. This avoids the web request never blocks on a third-party API.
+The split between `update_csv.py` (offline, run on a schedule) and `app.py` (online, serves user requests) is a deliberate separation of the slow data-acquisition path from the fast computation path. This ensures web requests never block on a third-party API.
 
 ### 4.2 Data pipeline (`update_csv.py`)
 
@@ -225,7 +262,7 @@ The split between `update_csv.py` (offline, run on a schedule) and `app.py` (onl
 
 ### 4.3 Calculation engine (`strategy_logic.py`)
 
-The engine is a single-file pure-pandas implementation. It accepts a price DataFrame and returns a JSON-serializable dict. This allows it tpo be invoked from a Flask request, a Jupyter notebook, a unit test, or a batch job without modification.
+The engine is a single-file pure-pandas implementation. It accepts a price DataFrame and returns a JSON-serializable dict. This allows it to be invoked from a Flask request, a Jupyter notebook, a unit test, or a batch job without modification.
 
 ### 4.4 Front-end layer (`app.py, tearsheet.html`)
 
@@ -253,7 +290,7 @@ document.getElementById('refreshBtn').addEventListener('click', runBacktest);
 
 `runBacktest()` reads the four parameter inputs, calls `/api/refresh?l1=&l2=&n=&c=`, and on receipt updates four UI elements in turn: the KPI grid, the stats table, the heatmap, and both charts. While the request is in flight the button text flips to "Running..." and the button is disabled to prevent re-entry.
 
-**What is loaded once vs per request.** `prices.csv` is parsed once at Flask process startup (`app.py` top level). Each `/api/refresh` call only pays for the backtest computation itself. With ~25 years of monthly data across 12 tickers, a full backtest runs in well, which is why the application can afford to re-run the entire backtest on every user click rather than caching results.
+**What is loaded once vs per request.** `prices.csv` is parsed once at Flask process startup (`app.py` top level). Each `/api/refresh` call only pays for the backtest computation itself. With ~25 years of monthly data across 12 tickers, a full backtest runs in ~100ms, which is why the application can afford to re-run the entire backtest on every user click rather than caching results.
 
 ### 4.5 Deployment (`render.yaml`)
 
@@ -261,7 +298,7 @@ Render.com web service, gunicorn-fronted, Python 3.12.0. Gunicorn is a Python We
 
 ### 4.6 Code excerpts
 
-**Excerpt 1: the trend filter.**
+**Excerpt 1: the trend filter** (`strategy_logic.py`).
 
 ```python
 def is_above_sma(prices, ticker, asof, window_months):
@@ -285,7 +322,7 @@ def is_above_sma(prices, ticker, asof, window_months):
     return current >= window.mean()
 ```
 
-**Excerpt 2: the momentum score.**
+**Excerpt 2: the momentum score** (`strategy_logic.py`).
 
 ```python
 def momentum_score(prices, asof):
@@ -316,7 +353,7 @@ def momentum_score(prices, asof):
     return pd.concat(rank_frames, axis=1).mean(axis=1).dropna()
 ```
 
-**Excerpt 3: the allocation kernel.**
+**Excerpt 3: the allocation kernel** (`strategy_logic.py`).
 
 ```python
 def target_weights(prices, asof):
@@ -346,7 +383,7 @@ def target_weights(prices, asof):
     return weights
 ```
 
-**Excerpt 4: the backtest loop.**
+**Excerpt 4: the backtest loop** (`strategy_logic.py`).
 
 ```python
 def backtest(prices):
@@ -427,13 +464,24 @@ def backtest(prices):
 
 **Solution proposed (not yet implemented).** A walk-forward harness that automates "real-time" testing by iteratively refitting strategy parameters on past data (years $t-1$) and validating them on the following unseen year ($t$). This framework prevents overfitting by ensuring the model never "sees" the future data it is currently attempting to trade.
 
-### 5.6 Version evolution
+### 5.5 Version evolution
 
+The strategy went through four meaningful design revisions.
+
+**Active returns instead of strategy returns.** Absolute monthly returns are dominated by the underlying market move and reveal little about whether the rotation logic is adding value. Switching to strategy minus benchmark isolates that contribution.
+
+**Compounded annual totals.** A row of twelve monthly active returns is hard to read without a summary, so each year now reduces to a single geometric-compound figure. 
+
+**Multi-horizon momentum.** A single lookback window triggers parameter sensitivity. Averaging ranks across 3 and 6 months reduces that sensitivity.
+
+**Trend filter moved from portfolio level to sector level.** Originally the 10-month SMA was applied to SPY itself, flipping the whole portfolio to cash when SPY broke trend. That conflicted with SPY's role as the benchmark. Exposure to SPY is now governed exclusively by `core_weight`. The trend filter operates per-sector via `use_sector_trend`.
+
+A subsequent pass refactored the codebase by removing cluttered inline notes and replacing them with comprehensive documentation for all core functions.
 
 ---
 
 
-## Appendix: Limitations and Next Steps for Deployment
+## Limitations and Next Steps for Deployment
 
 The following items are gaps that can be improved between a working prototype and implementation.
 
@@ -441,7 +489,7 @@ The following items are gaps that can be improved between a working prototype an
 2. **Factor attribution.** Regress monthly strategy excess returns onto Fama French factors. Report residual alpha and t-statistic, not just Sharpe.
 3. **Transaction-cost realism.** Replace the flat 1 bp with a realistic cost and show sensitivity of CAGR and Sharpe across the 0-10 bp range.
 4. **Regime stress.** Re-run the backtest sliced into 2000-2002, 2007-2009, 2020 Q1, 2022 separately and report the strategy's behavior conditional on these stressed windows.
-5. ** Rolling risk analysis.** Add a rolling 36-month volatility series to the tearsheet so the user can see how the strategy's risk profile evolves over time, rather than reading a single all-period number.
+5. **Rolling risk analysis.** Add a rolling 36-month volatility series to the tearsheet so the user can see how the strategy's risk profile evolves over time, rather than reading a single all-period number.
 
 ---
 
